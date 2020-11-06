@@ -147,6 +147,11 @@ def main():
             CLASSES=datasets[0].CLASSES)
     # add an attribute for visualization convenience
     model.CLASSES = datasets[0].CLASSES
+#     args.no_validate = True
+    if args.no_validate:
+        print("There is no validate yet...", args.no_validate)
+    else:
+        print("Train with validate...")
     train_detector(
         model,
         datasets,

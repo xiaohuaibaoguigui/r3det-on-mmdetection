@@ -94,13 +94,13 @@ class DOTAImageSplitTool(object):
 
 
 if __name__ == '__main__':
-    trainsplit = DOTAImageSplitTool('/data/dota/train',
-                                    '/data/dota/trainsplit',
+    trainsplit = DOTAImageSplitTool('/home/alex/datasets/DOTA_SHAPAN1.3/train',
+                                    '/home/alex/datasets/DOTA_SHAPAN1.3/trainsplit',
                                     tile_overlap=(150, 150),
                                     tile_shape=(600, 600))
     trainsplit.split()
-    valsplit = DOTAImageSplitTool('/data/dota/val',
-                                  '/data/dota/valsplit',
+    valsplit = DOTAImageSplitTool('/home/alex/datasets/DOTA_SHAPAN1.3/test',
+                                  '/home/alex/datasets/DOTA_SHAPAN1.3/testsplit',
                                   tile_overlap=(150, 150),
                                   tile_shape=(600, 600))
     valsplit.split()

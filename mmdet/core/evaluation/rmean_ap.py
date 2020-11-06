@@ -6,6 +6,7 @@ import torch
 from mmdet.ops import polygon_iou
 from .mean_ap import average_precision, print_map_summary
 
+from boxx import loga, mapmp, tree, p
 
 def rdets2points(rbboxes):
     """Convert detection results to a list of numpy arrays.
@@ -60,6 +61,7 @@ def rtpfp_default(det_bboxes,
         tuple[np.ndarray]: (tp, fp) whose elements are 0 and 1. The shape of
             each array is (num_scales, m).
     """
+#     print("in from rpmp")
     # an indicator of ignored gts
     gt_ignore_inds = np.concatenate(
         (np.zeros(gt_bboxes.shape[0], dtype=np.bool),
@@ -80,15 +82,22 @@ def rtpfp_default(det_bboxes,
     # if there is no gt bboxes in this image, then all det bboxes
     # within area range are false positives
     if gt_bboxes.shape[0] == 0:  # n==0
+#         print("In shape 0 ")
         if area_ranges == [(None, None)]:
+#             print("area true")
             fp[...] = 1
         else:
+#             print("area false")
             raise NotImplementedError
             det_areas = det_bboxes[:, 2] * det_bboxes[:, 3]
             for i, (min_area, max_area) in enumerate(area_ranges):
                 fp[i, (det_areas >= min_area) & (det_areas < max_area)] = 1
+#         print(tp, fp)
+#         print("going to return")
         return tp, fp
+#     print("before polygon_overlaps")
     ious = polygon_overlaps(det_bboxes, gt_bboxes)
+#     print("after polygon_overlaps")
     # for each det, the max iou with all gts
     ious_max = ious.max(axis=1)
     # for each det, which gt overlaps most with it
@@ -122,6 +131,7 @@ def rtpfp_default(det_bboxes,
                 area = bbox[2] * bbox[3]
                 if area >= min_area and area < max_area:
                     fp[k, i] = 1
+#     print("out from rpmp")
     return tp, fp
 
 
@@ -190,26 +200,61 @@ def reval_map(det_results,
         tuple: (mAP, [dict, dict, ...])
     """
     assert len(det_results) == len(annotations)
-
     num_imgs = len(det_results)
     num_scales = len(scale_ranges) if scale_ranges is not None else 1
     num_classes = len(det_results[0])  # positive class num
     area_ranges = ([(rg[0] ** 2, rg[1] ** 2) for rg in scale_ranges]
                    if scale_ranges is not None else None)
 
-    pool = Pool(nproc)
+#     nproc = 12
+#     pool = Pool(nproc)
     eval_results = []
     for i in range(num_classes):
+#         print("*****************************************Solving class:", i)
+#         print("nproc", nproc)
         # get gt and det bboxes of this class
         cls_dets, cls_gts, cls_gts_ignore = rget_cls_results(
             det_results, annotations, i)
-
-        tpfp = pool.starmap(
-            rtpfp_default,
-            zip(cls_dets, cls_gts, cls_gts_ignore,
-                [iou_thr for _ in range(num_imgs)],
-                [area_ranges for _ in range(num_imgs)]))
-        tp, fp = tuple(zip(*tpfp))
+#         print("!!!!!!!!!!!!cls_dets", (cls_dets))
+#         print("!!!!!!!!!!!!cls_gts", (cls_gts))
+#         print("!!!!!!!!!!!!cls_gts_ignore", (cls_gts_ignore))
+        #print(cls_dets, cls_gts, cls_gts_ignore)
+#         print(len(cls_dets), len(cls_gts), len(cls_gts_ignore), num_imgs)
+        
+        mytp = []
+        myfp = []
+        for cdt, cgt, cgti, iout, arear in zip(cls_dets, cls_gts, cls_gts_ignore,
+                                              [iou_thr for _ in range(num_imgs)],
+                                              [area_ranges for _ in range(num_imgs)]):
+            tp, fp = rtpfp_default(cdt, cgt, cgti, iout, arear)
+            mytp.append(tp)
+            myfp.append(fp)
+        mytp = tuple(mytp)
+        myfp = tuple(myfp)
+        
+#         tpfp = pool.starmap(
+#             rtpfp_default,
+#             zip(cls_dets, cls_gts, cls_gts_ignore,
+#                 [iou_thr for _ in range(num_imgs)],
+#                 [area_ranges for _ in range(num_imgs)]))
+#         tpfp = mapmp(
+#             rtpfp_default,
+#             zip(cls_dets, cls_gts, cls_gts_ignore,
+#                 [iou_thr for _ in range(num_imgs)],
+#                 [area_ranges for _ in range(num_imgs)] ))
+#         print("after starmap")
+        tp, fp = mytp, myfp
+#         tp, fp = tuple(zip(*tpfp))
+#         print(len(tp), len(fp))
+#         print(len(mytp), len(myfp))
+#         for a, b in zip(mytp, tp):
+#             print((a==b).all())
+#         for a, b in zip(myfp, fp):
+#             print((a==b).all())
+#         print("!!!!!!!!!!!!tp:", tp)
+#         print("!!!!!!!!****tp:", mytp)
+#         print("!!!!!!!!!!!!tp:", tp)
+#         print("!!!!!!!!!!!!fp:", fp)
         # calculate gt number of each scale
         # ignored gts or gts beyond the specific scale are not counted
         num_gts = np.zeros(num_scales, dtype=int)
@@ -247,7 +292,7 @@ def reval_map(det_results,
             'precision': precisions,
             'ap': ap
         })
-    pool.close()
+#     pool.close()
     if scale_ranges is not None:
         # shape (num_classes, num_scales)
         all_ap = np.vstack([cls_result['ap'] for cls_result in eval_results])

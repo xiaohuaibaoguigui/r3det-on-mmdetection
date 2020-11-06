@@ -1,13 +1,17 @@
 # dataset settings
 dataset_type = 'DOTADatasetV1'
 # dataset root path:
-data_root = '/data/dota/'
+data_root = '/home/alex/datasets/DOTA_SHAPAN1.3/'
 trainsplit_ann_folder = 'trainsplit/labelTxt'
 trainsplit_img_folder = 'trainsplit/images'
-valsplit_ann_folder = 'valsplit/labelTxt'
-valsplit_img_folder = 'valsplit/images'
-val_ann_folder = 'val/labelTxt'
-val_img_folder = 'val/images'
+valsplit_ann_folder = 'testsplit/labelTxt'
+valsplit_img_folder = 'testsplit/images'
+val_ann_folder = 'test/labelTxt'
+val_img_folder = 'test/images'
+# valsplit_ann_folder = 'valsplit/labelTxt_empty'
+# valsplit_img_folder = 'valsplit/images_empty'
+# val_ann_folder = 'val/labelTxt_empty'
+# val_img_folder = 'val/images_empty'
 test_img_folder = 'test/images'
 
 img_norm_cfg = dict(
@@ -17,7 +21,7 @@ train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='RResize', img_scale=(800, 800)),
-    dict(type='RRandomFlip', flip_ratio=0.5),
+    dict(type='RRandomFlip', flip_ratio=0.0),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size=(800, 800)),
     dict(type='DefaultFormatBundle'),
@@ -34,7 +38,7 @@ test_pipeline = [
         flip=False,
         transforms=[
             dict(type='RResize', img_scale=(800, 800)),
-            dict(type='RRandomFlip', flip_ratio=0.5),
+            dict(type='RRandomFlip', flip_ratio=0.0),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size=(800, 800)),
             dict(type='ImageToTensor', keys=['img']),
@@ -52,12 +56,12 @@ data = dict(
             ann_file=trainsplit_ann_folder,
             img_prefix=trainsplit_img_folder,
             pipeline=train_pipeline),
-        dict(
-            type=dataset_type,
-            data_root=data_root,
-            ann_file=valsplit_ann_folder,
-            img_prefix=valsplit_img_folder,
-            pipeline=train_pipeline),
+#         dict(
+#             type=dataset_type,
+#             data_root=data_root,
+#             ann_file=valsplit_ann_folder,
+#             img_prefix=valsplit_img_folder,
+#             pipeline=train_pipeline),
     ],
     val=dict(
             type=dataset_type,
@@ -67,9 +71,18 @@ data = dict(
             img_prefix=val_img_folder,
             pipeline=test_pipeline),
     test=dict(
-        type=dataset_type,
-        data_root=data_root,
-        ann_file=test_img_folder,
-        difficulty_thresh=1,
-        img_prefix=test_img_folder,
-        pipeline=test_pipeline))
+            type=dataset_type,
+            data_root=data_root,
+            ann_file=val_ann_folder,
+            difficulty_thresh=1,
+            img_prefix=val_img_folder,
+            pipeline=test_pipeline)
+#     test=dict(
+#         type=dataset_type,
+#         data_root=data_root,
+#         ann_file=test_img_folder,
+#         difficulty_thresh=1,
+#         img_prefix=test_img_folder,
+#         pipeline=test_pipeline)
+
+    )

@@ -63,8 +63,8 @@ def single_gpu_mergetiles_visualize(model,
         model.module.show_result(
             img_show,
             result,
-            show=True,
-            out_file=None,
+            show=False,
+            out_file='/home/alex/2lab/r3det-on-mmdetection/work_dirs/r3det_r50_fpn_2x_20201106/show_img/show_{}.jpg'.format(i),
             score_thr=show_score_thr)
 
         prog_bar.update()

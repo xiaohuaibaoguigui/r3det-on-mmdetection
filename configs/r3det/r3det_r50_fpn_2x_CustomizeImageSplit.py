@@ -11,7 +11,7 @@ log_config = dict(
     interval=50,
     hooks=[
         dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
+        dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 dist_params = dict(backend='nccl')
@@ -19,5 +19,5 @@ log_level = 'INFO'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]
-work_dir = './work_dirs/r3det_r50_fpn_2x_20200616'
+work_dir = './work_dirs/r3det_r50_fpn_2x_20201106'
 evaluation = dict(interval=1, metric='mAP')

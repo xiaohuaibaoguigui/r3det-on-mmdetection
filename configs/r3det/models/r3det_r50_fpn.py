@@ -20,7 +20,7 @@ model = dict(
         num_outs=5),
     bbox_head=dict(
         type='RRetinaHead',
-        num_classes=15,
+        num_classes=40,
         in_channels=256,
         stacked_convs=4,
         use_h_gt=True,
@@ -58,7 +58,7 @@ model = dict(
     refine_heads=[
         dict(
             type='RRetinaRefineHead',
-            num_classes=15,
+            num_classes=40,
             in_channels=256,
             stacked_convs=4,
             feat_channels=256,
@@ -81,7 +81,7 @@ model = dict(
                 loss_weight=1.0)),
         dict(
             type='RRetinaRefineHead',
-            num_classes=15,
+            num_classes=40,
             in_channels=256,
             stacked_convs=4,
             feat_channels=256,
@@ -145,12 +145,30 @@ train_cfg = dict(
     stage_loss_weights=[1.0, 1.0]
 )
 
+# merge_nms_iou_thr_dict = {
+#     'roundabout': 0.1, 'tennis-court': 0.3, 'swimming-pool': 0.1, 'storage-tank': 0.1,
+#     'soccer-ball-field': 0.3, 'small-vehicle': 0.05, 'ship': 0.05, 'plane': 0.3,
+#     'large-vehicle': 0.05, 'helicopter': 0.2, 'harbor': 0.0001, 'ground-track-field': 0.3,
+#     'bridge': 0.0001, 'basketball-court': 0.3, 'baseball-diamond': 0.3
+# }
+
 merge_nms_iou_thr_dict = {
-    'roundabout': 0.1, 'tennis-court': 0.3, 'swimming-pool': 0.1, 'storage-tank': 0.1,
-    'soccer-ball-field': 0.3, 'small-vehicle': 0.05, 'ship': 0.05, 'plane': 0.3,
-    'large-vehicle': 0.05, 'helicopter': 0.2, 'harbor': 0.0001, 'ground-track-field': 0.3,
-    'bridge': 0.0001, 'basketball-court': 0.3, 'baseball-diamond': 0.3
+   'car1-LUP': 0.1, 'car1-LDOWN': 0.1, 'car1-RUP': 0.1, 'car1-RDOWN': 0.1,
+   'car2-LUP': 0.1, 'car2-LDOWN': 0.1, 'car2-RUP': 0.1, 'car2-RDOWN': 0.1,
+   'car3-LUP': 0.1, 'car3-LDOWN': 0.1, 'car3-RUP': 0.1, 'car3-RDOWN': 0.1,
+   'car4-LUP': 0.1, 'car4-LDOWN': 0.1, 'car4-RUP': 0.1, 'car4-RDOWN': 0.1,
+   'car5-LUP': 0.1, 'car5-LDOWN': 0.1, 'car5-RUP': 0.1, 'car5-RDOWN': 0.1,
+   'car6-LUP': 0.1, 'car6-LDOWN': 0.1, 'car6-RUP': 0.1, 'car6-RDOWN': 0.1,
+   'car7-LUP': 0.1, 'car7-LDOWN': 0.1, 'car7-RUP': 0.1, 'car7-RDOWN': 0.1,
+   'car8-LUP': 0.1, 'car8-LDOWN': 0.1, 'car8-RUP': 0.1, 'car8-RDOWN': 0.1,
+   'car9-LUP': 0.1, 'car9-LDOWN': 0.1, 'car9-RUP': 0.1, 'car9-RDOWN': 0.1,
+   'car10-LUP': 0.1, 'car10-LDOWN': 0.1, 'car10-RUP': 0.1, 'car10-RDOWN': 0.1,
 }
+
+# merge_nms_iou_thr_dict = {
+#     'car1': 0.1, 'car2': 0.1, 'car3': 0.1, 'car4': 0.1, 'car5' : 0.1, 
+#     'car6': 0.1, 'car7': 0.1, 'car8': 0.1, 'car9': 0.1, 'car10': 0.1, 
+# }
 
 merge_cfg = dict(
     nms_pre=2000,

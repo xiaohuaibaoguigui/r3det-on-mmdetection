@@ -22,6 +22,18 @@ class DOTADatasetV1(CustomDataset):
                'storage-tank', 'soccer-ball-field',
                'roundabout', 'harbor',
                'swimming-pool', 'helicopter')
+#     CLASSES = ('car1', 'car2', 'car3', 'car4', 'car5' ,
+#                'car6', 'car7', 'car8', 'car9', 'car10',)
+    CLASSES = ('car1-LUP', 'car1-LDOWN', 'car1-RUP', 'car1-RDOWN',
+               'car2-LUP', 'car2-LDOWN', 'car2-RUP', 'car2-RDOWN',
+               'car3-LUP', 'car3-LDOWN', 'car3-RUP', 'car3-RDOWN',
+               'car4-LUP', 'car4-LDOWN', 'car4-RUP', 'car4-RDOWN',
+               'car5-LUP', 'car5-LDOWN', 'car5-RUP', 'car5-RDOWN',
+               'car6-LUP', 'car6-LDOWN', 'car6-RUP', 'car6-RDOWN',
+               'car7-LUP', 'car7-LDOWN', 'car7-RUP', 'car7-RDOWN',
+               'car8-LUP', 'car8-LDOWN', 'car8-RUP', 'car8-RDOWN',
+               'car9-LUP', 'car9-LDOWN', 'car9-RUP', 'car9-RDOWN',
+               'car10-LUP', 'car10-LDOWN', 'car10-RUP', 'car10-RDOWN',)
 
     def __init__(self, *args, **kwargs):
         self.difficulty_thresh = kwargs.pop('difficulty_thresh', 100)
@@ -168,14 +180,18 @@ class DOTADatasetV1(CustomDataset):
             scale_ranges (list[tuple] | None): Scale ranges for evaluating mAP.
                 Default: None.
         """
+        print("Going in evaluate....")
         if not isinstance(metric, str):
             assert len(metric) == 1
             metric = metric[0]
         allowed_metrics = ['mAP']
         if metric not in allowed_metrics:
+            print("Raiseing error...")
             raise KeyError(f'metric {metric} is not supported')
+        
         annotations = [self.get_ann_info(i) for i in range(len(self))]
         eval_results = {}
+#         print("Going to calcute map")
         if metric == 'mAP':
             assert isinstance(iou_thr, float)
             mean_ap, _ = reval_map(
@@ -186,6 +202,7 @@ class DOTADatasetV1(CustomDataset):
                 dataset=self.CLASSES,
                 logger=logger)
             eval_results['mAP'] = mean_ap
+#         print("After calcute map")
         return eval_results
 
     def _det2str(self, results):
