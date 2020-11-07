@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from mmdet.core import tensor2imgs
 
+from boxx import p
 
 def image_merge(data):
     img = data['img']
@@ -60,11 +61,19 @@ def single_gpu_mergetiles_visualize(model,
 
         img_show = image_merge(data)
 
+        img_metas = data['img_metas']
+        img_meta = img_metas[0].data[0]
+        img_meta = img_meta[0]
+        ori_filename = img_meta['ori_filename']
+#         exit()
+
         model.module.show_result(
             img_show,
             result,
             show=False,
-            out_file='/home/alex/2lab/r3det-on-mmdetection/work_dirs/r3det_r50_fpn_2x_20201106/show_img/show_{}.jpg'.format(i),
-            score_thr=show_score_thr)
+            out_file='/home/alex/2lab/r3det-on-mmdetection/work_dirs/r3det_r50_fpn_2x_20201106/show_img/{}'.format(ori_filename.replace('.png', '.jpg')),
+            score_thr=show_score_thr,
+            thickness=2,
+            font_scale=1.0)
 
         prog_bar.update()

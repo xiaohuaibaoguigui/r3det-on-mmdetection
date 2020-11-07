@@ -52,7 +52,7 @@ def main():
         model.CLASSES = dataset.CLASSES
 
     model = MMDataParallel(model, device_ids=[0])
-    single_gpu_mergetiles_visualize(model, data_loader, 0.3)
+    single_gpu_mergetiles_visualize(model, data_loader, 0.7)
 
 
 if __name__ == "__main__":

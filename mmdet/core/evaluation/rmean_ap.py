@@ -6,6 +6,10 @@ import torch
 from mmdet.ops import polygon_iou
 from .mean_ap import average_precision, print_map_summary
 
+import math
+import cv2
+from scipy.spatial.distance import pdist
+
 from boxx import loga, mapmp, tree, p
 
 def rdets2points(rbboxes):
@@ -39,16 +43,115 @@ def polygon_overlaps(polygons1, polygons2):
     p2 = torch.tensor(polygons2[:, :8], dtype=torch.float64)  # in case the last element of a row is the probability
     return polygon_iou(p1, p2).numpy()
 
+def angleme(v1, v2):
+    dx1 = v1[2] - v1[0]
+    dy1 = v1[3] - v1[1]
+    dx2 = v2[2] - v2[0]
+    dy2 = v2[3] - v2[1]
+    a1 = math.atan2(dy1, dx1)
+    angle1 = int(a1 * 180/math.pi)
+
+    a2 = math.atan2(dy2, dx2)
+    angle2 = int(a2 * 180/math.pi)
+    
+    a3 = a2 - a1
+    
+    if a3 > math.pi:
+        a3 = a3 - 2 * math.pi
+    if a3 < -math.pi:
+        a3 = a3 + 2 * math.pi
+        
+    #angle3 = int(a3 * 180/math.pi)
+    angle3 = a3 * 180/math.pi
+    
+    if angle3 > 0:
+        angle3 = 360 - angle3
+    if angle3 < 0:
+        angle3 = 0 - angle3
+        
+    return angle3
+
+
+def backward_convert(coordinate, with_label=True):
+    """
+    :param coordinate: format [x1, y1, x2, y2, x3, y3, x4, y4, (label)]
+    :param with_label: default True
+    :return: format [x_c, y_c, w, h, theta, (label)]
+    """
+
+    boxes = []
+    if with_label:
+        for rect in coordinate:
+            box = np.int0(rect[:-1])
+            tmp_v = [box[-2], box[-1], box[0], box[1]]
+            tmp_c = [box[0],  box[1],  box[2], box[3]]
+            
+            box = box.reshape([4, 2])
+            rect1 = cv2.minAreaRect(box)
+
+            x, y, w, h, theta = rect1[0][0], rect1[0][1], rect1[1][0], rect1[1][1], rect1[2]
+            
+            real_h = pdist([(tmp_v[0],tmp_v[1]), (tmp_v[2],tmp_v[3])])[0]
+            real_w = pdist([(tmp_c[0],tmp_c[1]), (tmp_c[2],tmp_c[3])])[0]
+            
+            theta = angleme(tmp_v, [0,1,0,0])
+#             if theta == 0:
+#                 theta = 360
+
+            boxes.append([x, y, real_w, real_h, theta, rect[-1]])
+
+    else:
+        for rect in coordinate:
+            box = np.int0(rect)
+            tmp_v = [box[-2], box[-1], box[0], box[1]]
+            tmp_c = [box[0],  box[1],  box[2], box[3]]
+            
+            box = box.reshape([4, 2])
+            rect1 = cv2.minAreaRect(box)
+
+            x, y, w, h, theta = rect1[0][0], rect1[0][1], rect1[1][0], rect1[1][1], rect1[2]
+            
+            real_h = pdist([(tmp_v[0],tmp_v[1]), (tmp_v[2],tmp_v[3])])[0]
+            real_w = pdist([(tmp_c[0],tmp_c[1]), (tmp_c[2],tmp_c[3])])[0]
+            
+            theta = angleme(tmp_v, [0,1,0,0])
+#             if theta == 0:
+#                 theta = 360
+
+            boxes.append([x, y, real_w, real_h, theta])
+
+    return np.array(boxes, dtype=np.float32)
+
+def direction2angle(label_text, ag):
+    ag = ag / math.pi * 180
+    
+    if "RUP" in label_text:
+        ag += 90
+    elif "RDOWN" in label_text:
+        ag += 180
+    elif "LDOWN" in label_text:
+        ag += 270
+    else:
+        ag += 360
+
+    if ag < 0:
+        ag += 360
+        print("negative:{},{}".format(ag, out_file) )
+            
+    return ag
 
 def rtpfp_default(det_bboxes,
+                  det_angles,
                   gt_bboxes,
                   gt_bboxes_ignore=None,
                   iou_thr=0.5,
-                  area_ranges=None):
+                  area_ranges=None,
+                  class_name=None):
     """Check if detected bboxes are true positive or false positive.
 
     Args:
         det_bboxes (ndarray): Detected bboxes of this image, of shape (m, 9).
+        det_angles (ndarray): Detected bbox center and angle of this image, of shape (m, 6).
         gt_bboxes (ndarray): GT bboxes of this image, of shape (n, 8).
         gt_bboxes_ignore (ndarray): Ignored gt bboxes of this image,
             of shape (k, 8). Default: None
@@ -61,7 +164,6 @@ def rtpfp_default(det_bboxes,
         tuple[np.ndarray]: (tp, fp) whose elements are 0 and 1. The shape of
             each array is (num_scales, m).
     """
-#     print("in from rpmp")
     # an indicator of ignored gts
     gt_ignore_inds = np.concatenate(
         (np.zeros(gt_bboxes.shape[0], dtype=np.bool),
@@ -78,26 +180,20 @@ def rtpfp_default(det_bboxes,
     # a certain scale
     tp = np.zeros((num_scales, num_dets), dtype=np.float32)  # (1, m)
     fp = np.zeros((num_scales, num_dets), dtype=np.float32)  # (1, m)
+    angle_shift = []
 
     # if there is no gt bboxes in this image, then all det bboxes
     # within area range are false positives
     if gt_bboxes.shape[0] == 0:  # n==0
-#         print("In shape 0 ")
         if area_ranges == [(None, None)]:
-#             print("area true")
             fp[...] = 1
         else:
-#             print("area false")
             raise NotImplementedError
             det_areas = det_bboxes[:, 2] * det_bboxes[:, 3]
             for i, (min_area, max_area) in enumerate(area_ranges):
                 fp[i, (det_areas >= min_area) & (det_areas < max_area)] = 1
-#         print(tp, fp)
-#         print("going to return")
-        return tp, fp
-#     print("before polygon_overlaps")
+        return tp, fp, angle_shift
     ious = polygon_overlaps(det_bboxes, gt_bboxes)
-#     print("after polygon_overlaps")
     # for each det, the max iou with all gts
     ious_max = ious.max(axis=1)
     # for each det, which gt overlaps most with it
@@ -121,6 +217,12 @@ def rtpfp_default(det_bboxes,
                     if not gt_covered[matched_gt]:
                         gt_covered[matched_gt] = True
                         tp[k, i] = 1
+                        # for every FP and there coresponsed GT
+                        # i is DT index and matched_gt is GT index
+                        dt_angle = direction2angle(class_name, det_angles[i][-2])
+                        gt_angle = backward_convert([gt_bboxes[matched_gt]], with_label=False)[0][4]
+                        angle_shift.append(abs(dt_angle - gt_angle))
+                        #print("GT:{:.02f}, DT:{:.02f}".format(gt_angle, dt_angle))
                     else:
                         fp[k, i] = 1
                 # otherwise ignore this detected bbox, tp = 0, fp = 0
@@ -131,8 +233,7 @@ def rtpfp_default(det_bboxes,
                 area = bbox[2] * bbox[3]
                 if area >= min_area and area < max_area:
                     fp[k, i] = 1
-#     print("out from rpmp")
-    return tp, fp
+    return tp, fp, angle_shift
 
 
 def rget_cls_results(det_results, annotations, class_id):
@@ -160,6 +261,33 @@ def rget_cls_results(det_results, annotations, class_id):
             cls_gts_ignore.append(torch.empty((0, 8), dtype=torch.float64))
 
     return cls_dets, cls_gts, cls_gts_ignore
+
+def rget_cls_results_angle(det_results, annotations, class_id):
+    """Get det results and gt information of a certain class.
+
+    Args:
+        det_results (list[list]): Same as `eval_map()`.
+        annotations (list[dict]): Same as `eval_map()`.
+        class_id (int): ID of a specific class.
+
+    Returns:
+        tuple[list[np.ndarray]]: detected bboxes, gt bboxes, ignored gt bboxes
+    """
+    cls_dets = [rdets2points(img_res[class_id]) for img_res in det_results]
+    cls_dets_angle = [img_res[class_id] for img_res in det_results]
+    cls_gts = []
+    cls_gts_ignore = []
+    for ann in annotations:
+        gt_inds = ann['labels'] == class_id
+        cls_gts.append(ann['polygons'][gt_inds, :])
+
+        if ann.get('labels_ignore', None) is not None:
+            ignore_inds = ann['labels_ignore'] == class_id
+            cls_gts_ignore.append(ann['polygons_ignore'][ignore_inds, :])
+        else:
+            cls_gts_ignore.append(torch.empty((0, 8), dtype=torch.float64))
+
+    return cls_dets, cls_gts, cls_gts_ignore, cls_dets_angle
 
 
 def reval_map(det_results,
@@ -206,55 +334,35 @@ def reval_map(det_results,
     area_ranges = ([(rg[0] ** 2, rg[1] ** 2) for rg in scale_ranges]
                    if scale_ranges is not None else None)
 
-#     nproc = 12
 #     pool = Pool(nproc)
     eval_results = []
+    angle_shift_results = []
     for i in range(num_classes):
-#         print("*****************************************Solving class:", i)
-#         print("nproc", nproc)
         # get gt and det bboxes of this class
-        cls_dets, cls_gts, cls_gts_ignore = rget_cls_results(
+        cls_dets, cls_gts, cls_gts_ignore, cls_dets_angle = rget_cls_results_angle(
             det_results, annotations, i)
-#         print("!!!!!!!!!!!!cls_dets", (cls_dets))
-#         print("!!!!!!!!!!!!cls_gts", (cls_gts))
-#         print("!!!!!!!!!!!!cls_gts_ignore", (cls_gts_ignore))
-        #print(cls_dets, cls_gts, cls_gts_ignore)
-#         print(len(cls_dets), len(cls_gts), len(cls_gts_ignore), num_imgs)
         
         mytp = []
         myfp = []
-        for cdt, cgt, cgti, iout, arear in zip(cls_dets, cls_gts, cls_gts_ignore,
+        angle_shift = []
+        for cdt, cgt, cgti, cdta, iout, arear, cname in zip(cls_dets, cls_gts, cls_gts_ignore, cls_dets_angle,
                                               [iou_thr for _ in range(num_imgs)],
-                                              [area_ranges for _ in range(num_imgs)]):
-            tp, fp = rtpfp_default(cdt, cgt, cgti, iout, arear)
+                                              [area_ranges for _ in range(num_imgs)],
+                                              [dataset[i] for _ in range(num_imgs)]):
+            tp, fp, ashift = rtpfp_default(cdt, cdta, cgt, cgti, iout, arear, cname)
             mytp.append(tp)
             myfp.append(fp)
+            angle_shift.extend(ashift)
         mytp = tuple(mytp)
         myfp = tuple(myfp)
-        
+        angle_shift_results.append(np.array(angle_shift).mean())
 #         tpfp = pool.starmap(
 #             rtpfp_default,
 #             zip(cls_dets, cls_gts, cls_gts_ignore,
 #                 [iou_thr for _ in range(num_imgs)],
 #                 [area_ranges for _ in range(num_imgs)]))
-#         tpfp = mapmp(
-#             rtpfp_default,
-#             zip(cls_dets, cls_gts, cls_gts_ignore,
-#                 [iou_thr for _ in range(num_imgs)],
-#                 [area_ranges for _ in range(num_imgs)] ))
-#         print("after starmap")
         tp, fp = mytp, myfp
 #         tp, fp = tuple(zip(*tpfp))
-#         print(len(tp), len(fp))
-#         print(len(mytp), len(myfp))
-#         for a, b in zip(mytp, tp):
-#             print((a==b).all())
-#         for a, b in zip(myfp, fp):
-#             print((a==b).all())
-#         print("!!!!!!!!!!!!tp:", tp)
-#         print("!!!!!!!!****tp:", mytp)
-#         print("!!!!!!!!!!!!tp:", tp)
-#         print("!!!!!!!!!!!!fp:", fp)
         # calculate gt number of each scale
         # ignored gts or gts beyond the specific scale are not counted
         num_gts = np.zeros(num_scales, dtype=int)
@@ -310,7 +418,11 @@ def reval_map(det_results,
             if cls_result['num_gts'] > 0:
                 aps.append(cls_result['ap'])
         mean_ap = np.array(aps).mean().item() if aps else 0.0
-
+    
+    print("**Angle Shift**")
+    for cname, asf in zip(dataset, angle_shift_results):
+        print("{}:{:.02f}".format(cname, asf))
+    print("Average Angle Shift:", np.array(angle_shift_results).mean())
     print_map_summary(
         mean_ap, eval_results, dataset, area_ranges, logger=logger)
 

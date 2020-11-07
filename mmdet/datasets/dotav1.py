@@ -16,12 +16,12 @@ class DOTADatasetV1(CustomDataset):
     """
         https://captain-whu.github.io/DOTA/dataset.html
     """
-    CLASSES = ('plane', 'baseball-diamond', 'bridge', 'ground-track-field',
-               'small-vehicle', 'large-vehicle', 'ship',
-               'tennis-court', 'basketball-court',
-               'storage-tank', 'soccer-ball-field',
-               'roundabout', 'harbor',
-               'swimming-pool', 'helicopter')
+#     CLASSES = ('plane', 'baseball-diamond', 'bridge', 'ground-track-field',
+#                'small-vehicle', 'large-vehicle', 'ship',
+#                'tennis-court', 'basketball-court',
+#                'storage-tank', 'soccer-ball-field',
+#                'roundabout', 'harbor',
+#                'swimming-pool', 'helicopter')
 #     CLASSES = ('car1', 'car2', 'car3', 'car4', 'car5' ,
 #                'car6', 'car7', 'car8', 'car9', 'car10',)
     CLASSES = ('car1-LUP', 'car1-LDOWN', 'car1-RUP', 'car1-RDOWN',

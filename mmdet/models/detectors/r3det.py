@@ -8,7 +8,7 @@ from .base import BaseDetector
 from mmdet.ops import FeatureRefineModule
 import mmcv
 import warnings
-from mmdet.utils import imshow_det_rbboxes
+from mmdet.utils import imshow_det_rbboxes, imshow_det_rbboxes_360
 
 
 @DETECTORS.register_module()
@@ -209,7 +209,7 @@ class R3Det(BaseDetector):
                     result,
                     score_thr=0.3,
                     bbox_color='green',
-                    text_color='green',
+                    text_color='red',
                     thickness=1,
                     font_scale=0.5,
                     win_name='',
@@ -271,7 +271,7 @@ class R3Det(BaseDetector):
         if out_file is not None:
             show = False
         # draw bounding boxes
-        imshow_det_rbboxes(
+        imshow_det_rbboxes_360(
             img,
             bboxes,
             labels,
