@@ -3,6 +3,7 @@ from ..builder import BACKBONES
 
 from mmcv.runner import load_checkpoint
 from mmdet.utils import get_root_logger
+from torch.nn.modules.batchnorm import _BatchNorm
 
 import math
 from torchtoolbox.nn import Activation
@@ -75,8 +76,12 @@ class MobileNetBottleneck(nn.Module):
 
 @BACKBONES.register_module()
 class MobileNetV1(nn.Module):
-    def __init__(self, num_classes=1000, small_input=False):
+    def __init__(self, frozen_stages=-1, norm_eval=True, num_classes=1000, small_input=False):
         super(MobileNetV1, self).__init__()
+        
+        self.frozen_stages = frozen_stages
+        self.norm_eval = norm_eval
+        
         self.first_block = nn.Sequential(
             nn.Conv2d(3, 32, 3, 2 if not small_input else 1, 1, bias=False),
             nn.BatchNorm2d(32),
@@ -121,6 +126,9 @@ class MobileNetV1(nn.Module):
         
         self.stage3 = nn.Sequential(MB1_Bottleneck(512, 1, 1024, 3, 2), 
                                     MB1_Bottleneck(1024, 1, 1024, 3, 1)) # 50 -> 25
+        
+        self._freeze_stages()
+        
 #         self.last_block = nn.Sequential(
 #             nn.AdaptiveAvgPool2d(1),
 #             nn.Flatten(),
@@ -144,7 +152,6 @@ class MobileNetV1(nn.Module):
 #         x = self.output(x)
         return tuple(outs)
 
-    # dummy function
     def init_weights(self, pretrained=None):
         if pretrained is None:
             print("[MobileNetV1]Train MobileNet V1 from scratch...")
@@ -155,4 +162,24 @@ class MobileNetV1(nn.Module):
                 load_checkpoint(self, pretrained, strict=False, logger=logger)
             else:
                 raise TypeError('pretrained must be a str or None')
+    
+    # only support freeze head and first stage 
+    def _freeze_stages(self):
+        if self.frozen_stages >= 0:
+            # freeze head first
+            self.first_block.eval()
+            for param in self.first_block.parameters():
+                param.requires_grad = False
+            self.stage_start.eval()
+            for param in self.stage_start.parameters():
+                param.requires_grad = False
+                
+    def train(self, mode=True):
+        super(MobileNetV1, self).train(mode)
+        self._freeze_stages()
+        if mode and self.norm_eval:
+            for m in self.modules():
+                # trick: eval have effect on BatchNorm only
+                if isinstance(m, _BatchNorm):
+                    m.eval()
         

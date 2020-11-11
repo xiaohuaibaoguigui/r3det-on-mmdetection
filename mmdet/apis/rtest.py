@@ -59,19 +59,30 @@ def single_gpu_mergetiles_visualize(model,
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
 
-        img_show = image_merge(data)
+        #img_show = image_merge(data)
+        img_tensor = data['img'][0]
+        img_metas = data['img_metas'][0].data[0]
+        imgs = tensor2imgs(img_tensor, **img_metas[0]['img_norm_cfg'])
+        assert len(imgs) == len(img_metas)
+        
+        img, img_meta = imgs[0], img_metas[0]
+        
+        h, w, _ = img_meta['img_shape']
+        img_show = img[:h, :w, :]
 
+        ori_h, ori_w = img_meta['ori_shape'][:-1]
+        img_show = mmcv.imresize(img_show, (ori_w, ori_h))
+        
         img_metas = data['img_metas']
         img_meta = img_metas[0].data[0]
         img_meta = img_meta[0]
         ori_filename = img_meta['ori_filename']
-#         exit()
 
         model.module.show_result(
             img_show,
             result,
             show=False,
-            out_file='/home/alex/2lab/r3det-on-mmdetection/work_dirs/r3det_r50_fpn_2x_20201106/show_img/{}'.format(ori_filename.replace('.png', '.jpg')),
+            out_file='/home/alex/2lab/r3det-on-mmdetection/work_dirs/r3det_mbv1_fpn_2x_20201110_IM_FZ_NOPATCH/show_img/{}'.format(ori_filename.replace('.png', '.jpg')),
             score_thr=show_score_thr,
             thickness=2,
             font_scale=1.0)

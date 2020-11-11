@@ -136,7 +136,7 @@ def direction2angle(label_text, ag):
 
     if ag < 0:
         ag += 360
-        print("negative:{},{}".format(ag, out_file) )
+        print("negative:{}".format(ag) )
             
     return ag
 
