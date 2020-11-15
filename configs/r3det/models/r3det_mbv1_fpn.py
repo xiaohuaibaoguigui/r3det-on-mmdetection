@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='R3Det',
+    type='R3Det_nofr',
     pretrained='/home/alex/2lab/r3det-on-mmdetection/work_dirs/MobileNetV1_alex.pth',
     #pretrained=None,
     backbone=dict(

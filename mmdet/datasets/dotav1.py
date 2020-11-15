@@ -163,7 +163,8 @@ class DOTADatasetV1(CustomDataset):
                  logger=None,
                  proposal_nums=(100, 300, 1000),
                  iou_thr=0.5,
-                 scale_ranges=None):
+                 scale_ranges=None,
+                 score_thr=0.7):
         """Evaluate the dataset.
 
         Args:
@@ -180,7 +181,6 @@ class DOTADatasetV1(CustomDataset):
             scale_ranges (list[tuple] | None): Scale ranges for evaluating mAP.
                 Default: None.
         """
-        print("Going in evaluate....")
         if not isinstance(metric, str):
             assert len(metric) == 1
             metric = metric[0]
@@ -190,8 +190,8 @@ class DOTADatasetV1(CustomDataset):
             raise KeyError(f'metric {metric} is not supported')
         
         annotations = [self.get_ann_info(i) for i in range(len(self))]
+        img_names   = [self.data_infos[i]['filename'] for i in range(len(self))]
         eval_results = {}
-#         print("Going to calcute map")
         if metric == 'mAP':
             assert isinstance(iou_thr, float)
             mean_ap, _ = reval_map(
@@ -200,9 +200,10 @@ class DOTADatasetV1(CustomDataset):
                 scale_ranges=scale_ranges,
                 iou_thr=iou_thr,
                 dataset=self.CLASSES,
-                logger=logger)
+                logger=logger,
+                img_names=img_names,
+                score_thr=score_thr)
             eval_results['mAP'] = mean_ap
-#         print("After calcute map")
         return eval_results
 
     def _det2str(self, results):
